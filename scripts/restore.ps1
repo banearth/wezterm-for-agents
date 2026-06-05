@@ -167,6 +167,20 @@ function Send-Resume {
 # 同一 (role|cwd) 的多个 pane（多个同目录 tab 的同侧）各取一个不同会话，不重复 resume 最近那一个。
 $script:resumeQueues = @{}
 $script:resumeIdx    = @{}
+
+function Add-ResumeAutoFlag {
+    # 复原后给 resume 命令写死“自动放行”参数，免得每个 agent 起来都卡在权限/批准提示。
+    # 约定（按命令前缀判断 agent，硬编码）：
+    #   claude -> --dangerously-skip-permissions
+    #   codex  -> --yolo （codex 的 YOLO 模式 = --dangerously-bypass-approvals-and-sandbox；
+    #                      0.137 起 --yolo 为有效隐藏别名，放 resume 子命令前后均可）
+    param([string]$Cmd)
+    if ([string]::IsNullOrWhiteSpace($Cmd)) { return $Cmd }
+    if ($Cmd -match '^\s*claude\b') { return "$Cmd --dangerously-skip-permissions" }
+    if ($Cmd -match '^\s*codex\b')  { return "$Cmd --yolo" }
+    return $Cmd
+}
+
 function Get-PaneResume {
     param($Pane, [string]$Role)   # Role = 'claude'(左/coder) | 'codex'(右/reviewer)
     $key = "$Role|$($Pane.cwd)"
@@ -187,7 +201,7 @@ function Get-PaneResume {
     $q = $script:resumeQueues[$key]
     if ($i -lt $q.Count) {
         $script:resumeIdx[$key] = $i + 1
-        return $q[$i]
+        return (Add-ResumeAutoFlag $q[$i])
     }
     return ""   # 候选用尽：只开 shell、不重复 resume 同一会话（用户可在此手动开 reviewer）
 }

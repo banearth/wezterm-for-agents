@@ -23,7 +23,7 @@ WezTerm 长时间运行会反复卡死（GUI 控制 socket 不再响应）。这
    - 把它打印的复原计划（要开几个窗口/tab、各自 cwd、各自 resume 命令）念给用户确认。
 3. **执行**：确认无误后去掉 `-WhatIf` 真跑：
    `powershell -NoProfile -ExecutionPolicy Bypass -File D:\CursorProject\WezTermInstall\scripts\restore.ps1`
-   它会重建窗口/tab/分屏，每个 pane 切到原 cwd 并发送 `claude --resume <id>` 或 `codex resume <id>`。
+   它会重建窗口/tab/分屏（左右分屏，**左 pane = coder = claude，右 pane = reviewer = codex**），每个 pane 切到原 cwd 并自动发送 resume 命令。
 4. 如果预览提示“这份快照没有 tab 布局”，说明还没有过一份健康时的快照可用——告诉用户：tab 布局无法重建，但磁盘上的 session 清单仍在快照的 `sessionIndex` 字段里（claude/codex 各自的 sessionId + cwd + resume 命令），可据此手动 resume。
 
 ## 手动拍快照（用户要“存一下当前会话”时）
@@ -42,6 +42,9 @@ WezTerm 长时间运行会反复卡死（GUI 控制 socket 不再响应）。这
 
 ## 注意
 
+- **resume 自动放行参数（写死在 `restore.ps1` 的 `Add-ResumeAutoFlag`）**：复原时给每条 resume 命令自动加“免批准”参数，让 agent 起来就能干活、不卡在权限提示——
+  - claude → `claude --resume <id> --dangerously-skip-permissions`
+  - codex  → `codex resume <id> --yolo`（codex 的 YOLO 模式 = `--dangerously-bypass-approvals-and-sandbox`，`--yolo` 为有效隐藏别名）。
 - pane↔session 是按 cwd + 最近活跃时间启发式匹配，不保证 100% 准；快照 json 里每个 pane 都附了候选 session 列表，匹配可疑时让用户核对。
 - 工程里的 `.ps1` 必须是 UTF-8 with BOM，否则 Windows PowerShell 5.1 按 GBK 解析中文会语法报错；编辑脚本后务必确认 BOM 仍在。
 - 复原会真实开窗口、在 pane 里执行 resume 命令，属于有副作用操作——默认先 `-WhatIf` 给用户看过再真跑。
