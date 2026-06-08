@@ -281,9 +281,24 @@ if (-not (Test-Path -LiteralPath $OutDir)) {
     New-Item -ItemType Directory -Path $OutDir | Out-Null
 }
 
+$latestPath = Join-Path $OutDir "latest.json"
+
+if (-not $weztermAvailable) {
+    # WezTerm 未响应，快照无效——不写入队列，不占槽位，直接退出。
+    [pscustomobject]@{
+        snapshot         = $null
+        latest           = $latestPath
+        weztermAvailable = $false
+        windows          = 0
+        panes            = 0
+        claudeSessions   = $claudeSessions.Count
+        codexSessions    = $codexSessions.Count
+    } | ConvertTo-Json
+    return
+}
+
 $stamp = (Get-Date).ToString("yyyyMMdd-HHmmss")
 $jsonPath = Join-Path $OutDir "wezterm-$stamp.json"
-$latestPath = Join-Path $OutDir "latest.json"
 
 $json = $snapshot | ConvertTo-Json -Depth 12
 Set-Content -LiteralPath $jsonPath -Value $json -Encoding UTF8
